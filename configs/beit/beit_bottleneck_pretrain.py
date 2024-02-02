@@ -28,11 +28,11 @@ train_pipeline = [
         second_interpolation='lanczos',
         scale=(0.08, 1.0)),
     dict(
-        type='BEiTMaskGenerator',
-        input_size=(14, 14),
-        num_masking_patches=75,
-        max_num_patches=None,
-        min_num_patches=16),
+        type='SimMIMMaskGenerator',
+        input_size=224,
+        mask_patch_size=16,
+        model_patch_size=16,
+        mask_ratio=0.4),
     dict(type='PackInputs')
 ]
 train_dataloader = dict(
@@ -60,7 +60,7 @@ model = dict(
         out_type='raw',
         layer_scale_init_value=0.1,
         num_cls_tokens=1,
-        use_bottleneck=False,
+        use_bottleneck=True,
         init_cfg=[
             dict(type='TruncNormal', std=0.02, layer='Linear'),
             dict(type='TruncNormal', std=0.02, layer='Conv2d'),
