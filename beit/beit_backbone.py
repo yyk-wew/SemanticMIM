@@ -14,6 +14,8 @@ from mmpretrain.models.utils import build_norm_layer, resize_pos_embed, to_2tupl
 from mmpretrain.models.backbones.base_backbone import BaseBackbone
 from mmpretrain.models.backbones.vision_transformer import TransformerEncoderLayer
 
+from mmseg.registry import MODELS as MODELS_SEG
+
 
 class BEiTAttention(BaseModule):
     """Original multi-head attention with q and kv splitted 
@@ -212,6 +214,7 @@ class BEiTTransformerEncoderLayer(TransformerEncoderLayer):
         return q
 
 
+@MODELS_SEG.register_module()
 @MODELS.register_module()
 class BEiTViTOurs(BaseBackbone):
     """Backbone for BEiT.
@@ -452,7 +455,7 @@ class BEiTViTOurs(BaseBackbone):
         if final_norm:
             self.ln1 = build_norm_layer(norm_cfg, self.embed_dims)
 
-        if out_type == 'avg_featmap':
+        if out_type in ['avg_featmap', 'cls_token']:
             self.ln2 = build_norm_layer(norm_cfg, self.embed_dims)
 
         # freeze stages only when self.frozen_stages > 0
@@ -530,7 +533,7 @@ class BEiTViTOurs(BaseBackbone):
                 for param in self.ln1.parameters():
                     param.requires_grad = False
 
-            if self.out_type == 'avg_featmap':
+            if self.out_type in ['avg_featmap', 'cls_token']:
                 self.ln2.eval()
                 for param in self.ln2.parameters():
                     param.requires_grad = False
@@ -555,7 +558,7 @@ class BEiTViTOurs(BaseBackbone):
 
         outs = []
         for i, layer in enumerate(self.layers):
-            x = layer(x)
+            x = layer(q=x, kv=x)
 
             if i == len(self.layers) - 1 and self.final_norm:
                 x = self.ln1(x)
@@ -569,13 +572,13 @@ class BEiTViTOurs(BaseBackbone):
         if self.out_type == 'raw':
             return x
         if self.out_type == 'cls_token':
-            return x[:, :self.num_extra_tokens]
+            return x[:, :self.num_extra_tokens].mean(dim=1)
 
         patch_token = x[:, self.num_extra_tokens:]
         if self.out_type == 'featmap':
             B = x.size(0)
             # (B, N, C) -> (B, H, W, C) -> (B, C, H, W)
-            return patch_token.reshape(B, *hw, -1).permute(0, 3, 1, 2)
+            return patch_token.reshape(B, *hw, -1).permute(0, 3, 1, 2).contiguous()
         if self.out_type == 'avg_featmap':
             return self.ln2(patch_token.mean(dim=1))
 
