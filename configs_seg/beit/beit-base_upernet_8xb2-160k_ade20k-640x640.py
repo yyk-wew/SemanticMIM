@@ -7,8 +7,9 @@ data_preprocessor = dict(size=crop_size)
 model = dict(
     data_preprocessor=data_preprocessor,
     pretrained=None,
-    backbone=dict(num_cls_tokens=1),
-    init_cfg=dict(type='Pretrained', checkpoint='/data/yike/checkpoint/mmpretrain/beit_baseline_pretrain/epoch_4.pth', prefix='backbone.'),
+    backbone=dict(
+        num_cls_tokens=1, 
+        init_cfg=dict(type='Pretrained', checkpoint='/data/yike/checkpoint/epoch_300.pth', prefix='backbone.')),
     test_cfg=dict(mode='slide', crop_size=(640, 640), stride=(426, 426)))
 
 optim_wrapper = dict(
