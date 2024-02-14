@@ -2,13 +2,16 @@ import numpy as np
 import math
 import torch
 import torch.nn as nn
-from typing import Optional, Tuple, List, Union
+from typing import Optional, Tuple, List, Union, Dict
 
 from .beit_backbone import BEiTViTOurs, BEiTTransformerEncoderLayer
 from mmpretrain.models.utils import resize_pos_embed
 from mmengine.model.weight_init import trunc_normal_
-from mmpretrain.registry import MODELS
+from mmpretrain.registry import MODELS, TRANSFORMS
 from mmengine.model import BaseModule, ModuleList
+from mmpretrain.models.selfsup import BaseSelfSupervisor
+from mmpretrain.structures import DataSample
+from mmcv.transforms import BaseTransform
 
 @MODELS.register_module()
 class BEiTPretrainViTOurs(BEiTViTOurs):
@@ -160,7 +163,8 @@ class BEiTPretrainViTOurs(BEiTViTOurs):
                 rescale(layer.ffn.layers[1].weight.data, layer_id + 1)
 
     def forward(self, x: torch.Tensor,
-                mask: Optional[torch.Tensor]) -> Tuple[torch.Tensor]:
+                img_index: Optional[torch.Tensor],
+                mask_index: Optional[torch.Tensor]) -> Tuple[torch.Tensor]:
         """The BEiT style forward function.
 
         The function supports two kind of forward behaviors. If the ``mask`` is
@@ -177,7 +181,7 @@ class BEiTPretrainViTOurs(BEiTViTOurs):
         Returns:
             Tuple[torch.Tensor]: Hidden features.
         """
-        if mask is None:
+        if img_index is None:
             return super().forward(x)
 
         else:
@@ -206,13 +210,13 @@ class BEiTPretrainViTOurs(BEiTViTOurs):
             # build mask tokens
             cls_tokens = x[:, :self.num_extra_tokens]
             other_tokens = x[:, self.num_extra_tokens:]
-            image_tokens = other_tokens[~mask.flatten(1).to(torch.bool)].reshape(B, -1, D)
+            image_tokens = other_tokens[img_index.flatten(1).to(torch.bool)].reshape(B, -1, D)
             num_img_tokens = image_tokens.shape[1]
 
             mask_tokens = self.mask_token.expand(B, L, -1)
             if self.pos_embed is not None:
                 mask_tokens = mask_tokens + resized_pos_embed[:, self.num_extra_tokens:]
-            mask_tokens = mask_tokens[mask.flatten(1).to(torch.bool)].reshape(B, -1, D)
+            mask_tokens = mask_tokens[mask_index.flatten(1).to(torch.bool)].reshape(B, -1, D)
             num_masked_tokens = mask_tokens.shape[1]
 
             x = torch.cat((cls_tokens, image_tokens, mask_tokens), dim=1)
@@ -280,3 +284,141 @@ class BEiTV1HeadOurs(BaseModule):
 
         loss = self.loss_module(logits, target)
         return loss
+
+
+@MODELS.register_module()
+class BEiTOurs(BaseSelfSupervisor):
+    """BEiT v1/v2.
+
+    Implementation of `BEiT: BERT Pre-Training of Image Transformers
+    <https://arxiv.org/abs/2106.08254>`_ and `BEiT v2: Masked Image Modeling
+    with Vector-Quantized Visual Tokenizers
+    <https://arxiv.org/abs/2208.06366>`_.
+    """
+
+    def extract_feat(self, inputs: torch.Tensor):
+        return self.backbone(inputs, mask=None)
+
+    def loss(self, inputs: List[torch.Tensor], data_samples: List[DataSample],
+             **kwargs) -> Dict[str, torch.Tensor]:
+        """The forward function in training.
+
+        Args:
+            inputs (List[torch.Tensor]): The input images.
+            data_samples (List[DataSample]): All elements required
+                during the forward function.
+
+        Returns:
+            Dict[str, torch.Tensor]: A dictionary of loss components.
+        """
+        img_index = torch.stack([data_sample.img_index for data_sample in data_samples])
+        mask_index = torch.stack([data_sample.mask_index for data_sample in data_samples])
+
+        img_latent = self.backbone(inputs[0], img_index, mask_index)
+
+        # inputs[1] is the target image
+        with torch.no_grad():
+            target = self.target_generator(inputs[1])
+            target = target.detach()
+
+        # BEiT v1
+        loss = self.head.loss(img_latent[0], target, mask_index)
+
+        if isinstance(loss, torch.Tensor):
+            losses = dict(loss=loss)
+            return losses
+        elif isinstance(loss, Tuple):
+            # the loss_1 and loss_2 are general reconstruction loss (patch
+            # feature vectors from last layer of backbone) and early state
+            # reconstruction loss (patch feature vectors from intermediate
+            # layer of backbone)
+            loss_1, loss_2 = loss[0], loss[1]
+            losses = dict()
+            # the key with prefix 'loss', like loss_1 and loss_2, will be used
+            # as the final criterion
+            losses['loss_1'] = loss_1
+            losses['loss_2'] = loss_2
+            return losses
+
+@TRANSFORMS.register_module()
+class SimMIMMaskGeneratorOurs(BaseTransform):
+    """Generate random block mask for each Image.
+
+    **Added Keys**:
+
+    - mask
+
+    This module is used in SimMIM to generate masks.
+
+    Args:
+        input_size (int): Size of input image. Defaults to 192.
+        mask_patch_size (int): Size of each block mask. Defaults to 32.
+        model_patch_size (int): Patch size of each token. Defaults to 4.
+        mask_ratio (float): The mask ratio of image. Defaults to 0.6.
+    """
+
+    def __init__(self,
+                 input_size: int = 192,
+                 mask_patch_size: int = 32,
+                 model_patch_size: int = 4,
+                 mask_ratio: float = 0.6,
+                 use_separate_mask: bool = False, 
+                 separate_mask_ratio: float = 0.6):
+        self.input_size = input_size
+        self.mask_patch_size = mask_patch_size
+        self.model_patch_size = model_patch_size
+        self.mask_ratio = mask_ratio
+        self.use_separate_mask = use_separate_mask
+        self.separate_mask_ratio = separate_mask_ratio
+
+        assert self.input_size % self.mask_patch_size == 0
+        assert self.mask_patch_size % self.model_patch_size == 0
+
+        self.rand_size = self.input_size // self.mask_patch_size
+        self.scale = self.mask_patch_size // self.model_patch_size
+
+        self.token_count = self.rand_size**2
+        self.mask_count = int(np.ceil(self.token_count * self.mask_ratio))
+        self.separate_mask_count = int(np.ceil(self.token_count * self.separate_mask_ratio))
+
+    def transform(self, results: dict) -> dict:
+        """Method to generate random block mask for each Image in SimMIM.
+
+        Args:
+            results (dict): Result dict from previous pipeline.
+
+        Returns:
+            dict: Result dict with added key ``mask``.
+        """
+        mask_idx = np.random.permutation(self.token_count)[:self.mask_count]
+        mask = np.zeros(self.token_count, dtype=int)
+        mask[mask_idx] = 1
+
+        mask = mask.reshape((self.rand_size, self.rand_size))
+        mask = mask.repeat(self.scale, axis=0).repeat(self.scale, axis=1)
+        mask = torch.from_numpy(mask)
+
+        results.update({'img_index': 1. - mask})
+
+        if self.use_separate_mask:
+            sep_mask_idx = np.random.permutation(self.token_count)[:self.separate_mask_count]
+            sep_mask = np.zeros(self.token_count, dtype=int)
+            sep_mask[sep_mask_idx] = 1
+
+            sep_mask = sep_mask.reshape((self.rand_size, self.rand_size))
+            sep_mask = sep_mask.repeat(self.scale, axis=0).repeat(self.scale, axis=1)
+            sep_mask = torch.from_numpy(sep_mask)
+
+            results.update({'mask_index': sep_mask})
+        else:
+            results.update({'mask_index': mask})
+
+        return results
+
+    def __repr__(self) -> str:
+        repr_str = self.__class__.__name__
+        repr_str += f'(input_size={self.input_size}, '
+        repr_str += f'mask_patch_size={self.mask_patch_size}, '
+        repr_str += f'model_patch_size={self.model_patch_size}, '
+        repr_str += f'mask_ratio={self.mask_ratio})'
+        return repr_str

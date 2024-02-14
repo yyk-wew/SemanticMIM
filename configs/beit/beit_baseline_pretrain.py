@@ -28,12 +28,13 @@ train_pipeline = [
         second_interpolation='lanczos',
         scale=(0.08, 1.0)),
     dict(
-        type='SimMIMMaskGenerator',
+        type='SimMIMMaskGeneratorOurs',
         input_size=224,
         mask_patch_size=16,
         model_patch_size=16,
         mask_ratio=0.4),
-    dict(type='PackInputs')
+    dict(type='PackInputs',
+         algorithm_keys=('img_index', 'mask_index'))
 ]
 train_dataloader = dict(
     batch_size=256,
@@ -50,7 +51,7 @@ train_dataloader = dict(
 
 # model settings
 model = dict(
-    type='BEiT',
+    type='BEiTOurs',
     backbone=dict(
         type='BEiTPretrainViTOurs',
         arch='base',
