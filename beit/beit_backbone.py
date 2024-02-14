@@ -572,7 +572,7 @@ class BEiTViTOurs(BaseBackbone):
         if self.out_type == 'raw':
             return x
         if self.out_type == 'cls_token':
-            return x[:, :self.num_extra_tokens].mean(dim=1)
+            return self.ln2(x[:, :self.num_extra_tokens].mean(dim=1))
 
         patch_token = x[:, self.num_extra_tokens:]
         if self.out_type == 'featmap':
