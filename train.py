@@ -11,6 +11,7 @@ from mmengine.utils import digit_version
 from mmengine.utils.dl_utils import TORCH_VERSION
 
 import beit
+import maskfeat
 
 
 def parse_args():
