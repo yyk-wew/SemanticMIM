@@ -1,15 +1,8 @@
 _base_ = [
-    '../_base_/datasets/imagenet_bs64_swin_224.py',
+    '../_base_/datasets/imagenet_bs32_pil_resize.py',
     '../_base_/schedules/imagenet_bs1024_adamw_swin.py',
     '../_base_/default_runtime.py'
 ]
-
-data_preprocessor = dict(
-    num_classes=1000,
-    mean=[127.5, 127.5, 127.5],
-    std=[127.5, 127.5, 127.5],
-    to_rgb=True,
-)
 
 # model settings
 model = dict(
@@ -30,7 +23,7 @@ model = dict(
         num_classes=1000,
         in_channels=768,
         loss=dict(type='CrossEntropyLoss'),
-        init_cfg=[dict(type='TruncNormal', layer='Linear', std=0.02)]),
+        init_cfg=[dict(type='TruncNormal', layer='Linear', std=0.01)]),
     )
 
 train_pipeline = [
@@ -55,33 +48,40 @@ test_pipeline = [
     dict(type='PackInputs')
 ]
 
-train_dataloader = dict(batch_size=128, dataset=dict(pipeline=train_pipeline))
-val_dataloader = dict(batch_size=128, dataset=dict(pipeline=test_pipeline))
-test_dataloader = val_dataloader
+train_dataloader = dict(batch_size=2048, drop_last=True)
+val_dataloader = dict(drop_last=False)
+test_dataloader = dict(drop_last=False)
 
 # optimizer wrapper
 optim_wrapper = dict(
-    optimizer=dict(
-        type='AdamW', lr=4e-3, weight_decay=1e-4),
-    constructor='LearningRateDecayOptimWrapperConstructor',
+    _delete_=True,
+    type='AmpOptimWrapper',
+    optimizer=dict(type='LARS', lr=6.4, weight_decay=0.0, momentum=0.9),
     paramwise_cfg=dict(_delete_=True))
 
 # learning rate scheduler
 param_scheduler = [
     dict(
-        type='CosineAnnealingLR',
+        type='LinearLR',
+        start_factor=1e-4,
         by_epoch=True,
         begin=0,
-        end=100,
-        eta_min=0,
+        end=10,
+        convert_to_iter_based=True),
+    dict(
+        type='CosineAnnealingLR',
+        T_max=80,
+        by_epoch=True,
+        begin=10,
+        end=90,
+        eta_min=0.0,
         convert_to_iter_based=True)
 ]
-
 # runtime settings
 default_hooks = dict(
     # save checkpoint per epoch.
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=2, out_dir='/data/yike/checkpoint/mmpretrain/'))
 
-train_cfg = dict(by_epoch=True, max_epochs=100)
+train_cfg = dict(by_epoch=True, max_epochs=90)
 
 randomness = dict(seed=0)
