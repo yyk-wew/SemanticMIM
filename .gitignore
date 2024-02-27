@@ -6,4 +6,5 @@ __pycache__/
 
 /data
 /work_dirs
+/vis
 .vscode

@@ -67,7 +67,7 @@ class BEiTAttention(BaseModule):
         self.proj_drop = nn.Dropout(proj_drop_rate)
 
 
-    def forward(self, q, kv):
+    def forward(self, q, kv, return_attn=False):
         """
         Args:
             x (tensor): input features with shape of (num_windows*B, N, C).
@@ -89,6 +89,10 @@ class BEiTAttention(BaseModule):
         attn = (q @ k.transpose(-2, -1))
 
         attn = attn.softmax(dim=-1)
+
+        if return_attn:
+            return attn
+
         attn = self.attn_drop(attn)
         x = (attn @ v).transpose(1, 2).reshape(B, N_q, -1)
         x = self.proj(x)
@@ -212,6 +216,9 @@ class BEiTTransformerEncoderLayer(TransformerEncoderLayer):
                 q=self.ln1(q), kv=self.ln1(kv)))
             q = q + self.drop_path(self.gamma_2 * self.ffn(self.ln2(q)))
         return q
+    
+    def get_attn(self, q, kv):
+        return self.attn(q=self.ln1(q), kv=self.ln1(kv), return_attn=True)
 
 
 @MODELS_SEG.register_module()
@@ -616,3 +623,29 @@ class BEiTViTOurs(BaseBackbone):
             layer_depth = num_layers - 1
 
         return layer_depth, num_layers
+
+    def get_last_selfattention(self, x):
+        B = x.shape[0]
+        x, patch_resolution = self.patch_embed(x)
+
+        if self.cls_token is not None:
+            # stole cls_tokens impl from Phil Wang, thanks
+            cls_token = self.cls_token.expand(B, -1, -1)
+            x = torch.cat((cls_token, x), dim=1)
+
+        if self.pos_embed is not None:
+            x = x + resize_pos_embed(
+                self.pos_embed,
+                self.patch_resolution,
+                patch_resolution,
+                mode=self.interpolate_mode,
+                num_extra_tokens=self.num_extra_tokens)
+
+        outs = []
+        for i, layer in enumerate(self.layers):
+            x = layer(q=x, kv=x)
+
+            if i in self.out_indices:
+                outs.append(self.layers[i].get_attn(q=x, kv=x))
+
+        return tuple(outs)
