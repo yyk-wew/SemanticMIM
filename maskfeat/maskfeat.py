@@ -190,6 +190,8 @@ class MaskFeatViTOurs(VisionTransformerOurs):
                 else:
                     x = self.layers[i](q=x, kv=x)
 
+            if self.use_bottleneck:
+                x = torch.cat((cls_tokens, image_tokens, mask_tokens), dim=1)
 
             if self.final_norm:
                 x = self.norm1(x)
