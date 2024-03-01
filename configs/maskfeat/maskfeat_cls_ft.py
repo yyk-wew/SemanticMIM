@@ -107,7 +107,7 @@ param_scheduler = [
 ]
 
 # runtime settings
-train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=100)
+train_cfg = dict(by_epoch=True, max_epochs=100)
 default_hooks = dict(
     # save checkpoint per epoch.
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=3))
