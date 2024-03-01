@@ -98,7 +98,7 @@ class MultiheadCrossAttention(BaseModule):
         else:
             self.gamma1 = nn.Identity()
 
-    def forward(self, q, kv):
+    def forward(self, q, kv, return_attn=False):
         # B, N, _ = x.shape
         # qkv = self.qkv(x).reshape(B, N, 3, self.num_heads,
         #                           self.head_dims).permute(2, 0, 3, 1, 4)
@@ -112,6 +112,12 @@ class MultiheadCrossAttention(BaseModule):
         attn_drop = self.attn_drop if self.training else 0.
         x = self.scaled_dot_product_attention(q, k, v, dropout_p=attn_drop)
         x = x.transpose(1, 2).reshape(B, N_q, self.embed_dims)
+
+        if return_attn:
+            q = q * q.size(-1)**-0.5
+            attn = (q @ k.transpose(-2, -1))
+            attn = attn.softmax(dim=-1)
+            return attn
 
         x = self.proj(x)
         x = self.out_drop(self.gamma1(self.proj_drop(x)))
@@ -213,6 +219,9 @@ class TransformerEncoderLayerOurs(BaseModule):
         q = q + self.attn(q=self.ln1(q), kv=self.ln1(kv))
         q = self.ffn(self.ln2(q), identity=q)
         return q
+    
+    def get_attn(self, q, kv):
+        return self.attn(q=self.ln1(q), kv=self.ln1(kv), return_attn=True)
     
 
 @MODELS.register_module()
@@ -641,3 +650,29 @@ class VisionTransformerOurs(BaseBackbone):
             layer_depth = num_layers - 1
 
         return layer_depth, num_layers
+    
+    def get_last_selfattention(self, x):
+        B = x.shape[0]
+        x, patch_resolution = self.patch_embed(x)
+
+        if self.cls_token is not None:
+            # stole cls_tokens impl from Phil Wang, thanks
+            cls_token = self.cls_token.expand(B, -1, -1)
+            x = torch.cat((cls_token, x), dim=1)
+
+        if self.pos_embed is not None:
+            x = x + resize_pos_embed(
+                self.pos_embed,
+                self.patch_resolution,
+                patch_resolution,
+                mode=self.interpolate_mode,
+                num_extra_tokens=self.num_extra_tokens)
+
+        outs = []
+        for i, layer in enumerate(self.layers):
+            x = layer(q=x, kv=x)
+
+            if i in self.out_indices:
+                outs.append(self.layers[i].get_attn(q=x, kv=x))
+
+        return tuple(outs)
