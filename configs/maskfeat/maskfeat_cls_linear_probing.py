@@ -14,6 +14,8 @@ model = dict(
         patch_size=16,
         drop_path_rate=0.1,
         out_type='avg_featmap',
+        out_indices=-1,
+        frozen_stages=12,
         num_cls_tokens=1,
         final_norm=False,
         init_cfg=dict(type='Pretrained', checkpoint='', prefix='backbone.')),
