@@ -11,6 +11,7 @@ from mmengine.runner import Runner
 from mmseg.registry import RUNNERS
 
 import beit
+import maskfeat
 
 
 def parse_args():

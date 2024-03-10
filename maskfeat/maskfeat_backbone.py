@@ -5,6 +5,7 @@ import numpy as np
 from functools import partial
 from typing import Sequence
 
+from mmseg.registry import MODELS as MODELS_SEG
 from mmengine.model import BaseModule, ModuleList
 from mmpretrain.registry import MODELS
 from mmpretrain.models.utils.attention import \
@@ -225,6 +226,7 @@ class TransformerEncoderLayerOurs(BaseModule):
     
 
 @MODELS.register_module()
+@MODELS_SEG.register_module()
 class VisionTransformerOurs(BaseBackbone):
     """Vision Transformer.
 
