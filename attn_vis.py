@@ -1,17 +1,10 @@
 from mmpretrain import get_model
-import beit
-import pdb
 
 import os
 import sys
 import argparse
-import random
-import colorsys
-import requests
-from io import BytesIO
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
 import torch
 import torch.nn as nn
 import torchvision
@@ -20,13 +13,12 @@ import numpy as np
 from PIL import Image
 
 import maskfeat
+import beit
 
 
 def draw_attention(attentions, args, layer):
     # attentions [nh, query_seq, kv_seq]
     nh = attentions.shape[0] # number of head
-    # import pdb
-    # pdb.set_trace()
 
     mean_cls = None
     if args.get_cls_attn:
@@ -58,20 +50,13 @@ def draw_attention(attentions, args, layer):
         fname = os.path.join(args.output_dir, base_name, post_dir, 'layer-' + str(layer) + '-mean-cls' + '.png')
         plt.imsave(fname=fname, arr=mean_cls, format='png')
 
-
-    # Plot each head and an avg attention map
     for i, index in enumerate(indices):
         temp_attn = attentions[:, i]
-        # for j in range(nh):
-        #     fname = os.path.join(args.output_dir, base_name + '-' + str(i) + "-attn-head" + str(j) + ".png")
-        #     plt.imsave(fname=fname, arr=temp_attn[j], format='png')
-        #     print(f"{fname} saved.")
-        fname = os.path.join(args.output_dir, base_name, post_dir, 'layer-' + str(layer) + '-token-' + str(index) + '.png')
+        postfix = 'reduce.png' if mean_cls is not None else '.png'
+        fname = os.path.join(args.output_dir, base_name, post_dir, 'layer-' + str(layer) + '-token-' + str(index) + postfix)
         temp_attn = np.mean(temp_attn, axis=0)
         if mean_cls is not None:
             temp_attn = temp_attn - mean_cls
-        # import pdb
-        # pdb.set_trace()
         plt.imsave(fname=fname, arr=temp_attn, format='png')
 
     mean_attn = np.mean(attentions, axis=0) # shape [query, w, h]
@@ -117,14 +102,7 @@ if __name__ == '__main__':
     model.eval()
 
     # open image
-    if args.image_path is None:
-        # user has not specified any image - we use our own image
-        print("Please use the `--image_path` argument to indicate the path of the image you wish to visualize.")
-        print("Since no image path have been provided, we take the first image in our paper.")
-        response = requests.get("https://dl.fbaipublicfiles.com/dino/img.png")
-        img = Image.open(BytesIO(response.content))
-        img = img.convert('RGB')
-    elif os.path.isfile(args.image_path):
+    if os.path.isfile(args.image_path):
         with open(args.image_path, 'rb') as f:
             img = Image.open(f)
             img = img.convert('RGB')
