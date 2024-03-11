@@ -643,9 +643,9 @@ class BEiTViTOurs(BaseBackbone):
 
         outs = []
         for i, layer in enumerate(self.layers):
-            x = layer(q=x, kv=x)
-
             if i in self.out_indices:
                 outs.append(self.layers[i].get_attn(q=x, kv=x))
+            
+            x = layer(q=x, kv=x)
 
         return tuple(outs)

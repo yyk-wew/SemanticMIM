@@ -75,13 +75,14 @@ if __name__ == '__main__':
     parser.add_argument("--image_size", default=(480, 480), type=int, nargs="+", help="Resize image.")
     parser.add_argument('--output_dir', default='./vis/ours/', help='Path where to save visualizations.')
     parser.add_argument("--pretrained_weights", default='/data/yike/checkpoint/ours_8_cls_300_epoch', type=str)
-    parser.add_argument("--get_cls_attn", action='store_true')
-    parser.add_argument("--reduce_mean", action='store_true')
-    parser.add_argument("--layer_indices", default=(-1, ), type=int, nargs="+", help="-1 represents all layers.")
-    parser.add_argument("--token_indices", default=(0, ), type=int, nargs="+", help="token index used when patch token as query.")
+    parser.add_argument("--get_cls_attn", action='store_true', help='Whether to visualize attention of [CLS] token or patch tokens.')
+    parser.add_argument("--reduce_mean", action='store_true', help='Whether to reduce averaged [CLS] token attention.')
+    parser.add_argument("--layer_indices", default=(-1, ), type=int, nargs="+", help="layer index list. -1 represents all layers.")
+    parser.add_argument("--token_indices", default=(0, ), type=int, nargs="+", help="token index used as queries.")
     args = parser.parse_args()
 
     print("Get cls token attn: ", args.get_cls_attn)
+    print("Use Reduce: ", args.reduce_mean)
     if args.layer_indices[0] == -1:
         args.layer_indices = tuple(range(0, 12))
     print("Layer indices: ", args.layer_indices)
