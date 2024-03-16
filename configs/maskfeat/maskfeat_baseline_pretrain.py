@@ -2,7 +2,7 @@ _base_ = '../_base_/default_runtime.py'
 
 # dataset settings
 dataset_type = 'ImageNet'
-data_root = '/data/yike/imagenet/'
+data_root = '/path/to/imagenet/'
 data_preprocessor = dict(
     type='SelfSupDataPreprocessor',
     mean=[123.675, 116.28, 103.53],
@@ -101,7 +101,7 @@ param_scheduler = [
 train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=300)
 default_hooks = dict(
     # only keeps the latest 3 checkpoints
-    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=3, out_dir='/data/yike/checkpoint/mmpretrain'))
+    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=3, out_dir='/path/to/out_dir/'))
 
 # NOTE: `auto_scale_lr` is for automatically scaling LR
 # based on the actual training batch size.

@@ -9,7 +9,7 @@ model = dict(
     pretrained=None,
     backbone=dict(
         num_cls_tokens=1, 
-        init_cfg=dict(type='Pretrained', checkpoint='/data/yike/checkpoint/epoch_300.pth', prefix='backbone.')),
+        init_cfg=dict(type='Pretrained', checkpoint='/path/to/ckpt', prefix='backbone.')),
     test_cfg=dict(mode='slide', crop_size=(640, 640), stride=(426, 426)))
 
 optim_wrapper = dict(

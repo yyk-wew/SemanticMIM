@@ -17,7 +17,7 @@ model = dict(
         drop_path_rate=0.1,
         out_type='featmap',
         num_cls_tokens=1,
-        init_cfg=dict(type='Pretrained', checkpoint='/data/yike/checkpoint/maskfeat_baseline', prefix='backbone.')
+        init_cfg=dict(type='Pretrained', checkpoint='/path/to/ckpt', prefix='backbone.')
         ),
     test_cfg=dict(mode='slide', crop_size=(640, 640), stride=(426, 426)))
 

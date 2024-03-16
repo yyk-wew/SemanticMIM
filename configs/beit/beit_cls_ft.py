@@ -22,7 +22,7 @@ model = dict(
         drop_path_rate=0.1,
         num_cls_tokens=1,
         out_type='avg_featmap',
-        init_cfg=dict(type='Pretrained', checkpoint='/data/yike/checkpoint/mmpretrain/beit_baseline_pretrain/epoch_4.pth', prefix='backbone.')),
+        init_cfg=dict(type='Pretrained', checkpoint='/path/to/ckpt', prefix='backbone.')),
     neck=None,
     head=dict(
         type='LinearClsHead',
@@ -118,7 +118,7 @@ param_scheduler = [
 # runtime settings
 default_hooks = dict(
     # save checkpoint per epoch.
-    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=2, out_dir='/data/yike/checkpoint/mmpretrain/'))
+    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=2, out_dir='/path/to/out_dir/'))
 
 train_cfg = dict(by_epoch=True, max_epochs=100)
 

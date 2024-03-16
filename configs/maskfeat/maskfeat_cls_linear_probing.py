@@ -75,7 +75,7 @@ param_scheduler = [
 # runtime settings
 default_hooks = dict(
     # save checkpoint per epoch.
-    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=2, out_dir='/data/yike/checkpoint/mmpretrain/'))
+    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=2, out_dir='/path/to/out_dir/'))
 
 train_cfg = dict(by_epoch=True, max_epochs=100)
 
