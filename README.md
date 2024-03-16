@@ -52,5 +52,5 @@ Following settings of Leopart ([repo link](https://github.com/MkuuWaUjinga/leopa
 
 Command Format:
 ```bash
-python -m torch.distributed.launch --nproc_per_node=8 eval_segment.py --pretrained_weights /path/to/ckpt --output_dir /path/to/log_dir/
+python -m torch.distributed.launch --nproc_per_node=8 seg_linear_probing.py --pretrained_weights /path/to/ckpt --output_dir /path/to/log_dir/ --data_path /path/to/pascalvoc
 ```
