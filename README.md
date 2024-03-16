@@ -15,7 +15,7 @@ The implementation is based on [MMPreTrain](https://github.com/open-mmlab/mmpret
 If you want to evaluate the pre-trained model on ADE20K, [MMSegmentation](https://github.com/open-mmlab/mmsegmentation) is needed and the installation guide is [here](https://github.com/open-mmlab/mmsegmentation/blob/main/docs/en/get_started.md#installation).
 
 ## Pre-training
-Our method could be applied on any Masked Image Modeling framework. In this repo, we provide support for BEiT (paper link) and MaskFeat (paper link) as the baselines. 
+Our method could be applied on any Masked Image Modeling framework. In this repo, we provide support for BEiT ([paper link](https://arxiv.org/abs/2106.08254)) and MaskFeat ([paper link](https://arxiv.org/abs/2112.09133)) as the baselines. 
 
 For example, training a vanilla BEiT with single GPU:
 ```bash
@@ -48,7 +48,7 @@ bash dist_train_seg.sh configs_seg/beit/beit-base_upernet_8xb2-160k_ade20k-640x6
 ```
 
 ## Linear Probing on PascalVOC
-Following settings of Leopart (repo link), we build a 1x1 conv layer on top of the frozen feature for semantic segmentation. Please prepare the dataset following the Leopart repo.
+Following settings of Leopart ([repo link](https://github.com/MkuuWaUjinga/leopart)), we build a 1x1 conv layer on top of the frozen feature for semantic segmentation. Please prepare the dataset following the Leopart repo.
 
 Command Format:
 ```bash
