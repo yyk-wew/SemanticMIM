@@ -1,6 +1,8 @@
 # SemanticMIM
 Implementation of paper: "SemanticMIM: Marring Masked Image Modeling with Semantics Compression for General Visual Representation".
 
+Paper link: [https://arxiv.org/abs/2406.10673](https://arxiv.org/abs/2406.10673)
+
 ## Attention Visualization
 <div>
   <img width="100%" alt="Attention Visualization" src="figures/vis.png">
